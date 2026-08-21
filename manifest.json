@@ -1,0 +1,19 @@
+{
+  "name": "Pedidos Kit - Gestão de Encomendas",
+  "short_name": "Pedidos Kit",
+  "description": "App para gerir pedidos de t-shirts, camisolas e kits de futebol",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f5fb",
+  "theme_color": "#6c5ce7",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

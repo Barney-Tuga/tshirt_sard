@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Pedidos Kit</title>
+<meta name="theme-color" content="#6c5ce7">
+<meta name="description" content="App para gerir pedidos de t-shirts, camisolas e kits de futebol">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-inner">
+    <img src="icon.svg" alt="" class="header-logo">
+    <h1>Pedidos Kit</h1>
+  </div>
+</header>
+
+<main id="app">
+
+  <!-- ===================== HOME ===================== -->
+  <section id="view-home" class="view active">
+    <div class="stats-grid">
+      <div class="stat-card accent">
+        <span class="stat-value" id="stat-total">0</span>
+        <span class="stat-label">Total de pedidos</span>
+      </div>
+      <div class="stat-card warn">
+        <span class="stat-value" id="stat-por-entregar">0</span>
+        <span class="stat-label">Por entregar</span>
+      </div>
+      <div class="stat-card danger">
+        <span class="stat-value" id="stat-por-pagar">0</span>
+        <span class="stat-label">Por pagar</span>
+      </div>
+      <div class="stat-card success">
+        <span class="stat-value" id="stat-receita">0€</span>
+        <span class="stat-label">Receita recebida</span>
+      </div>
+      <div class="stat-card muted">
+        <span class="stat-value" id="stat-receita-pendente">0€</span>
+        <span class="stat-label">Receita pendente</span>
+      </div>
+      <div class="stat-card muted">
+        <span class="stat-value" id="stat-mes">0€</span>
+        <span class="stat-label">Este mês</span>
+      </div>
+    </div>
+
+    <div class="home-actions">
+      <button class="btn-primary btn-add-note" id="btn-add-note">
+        <span class="icon-plus">+</span> Adicionar pedido
+      </button>
+    </div>
+
+    <div class="recent-section">
+      <h2>Pedidos recentes</h2>
+      <div id="recent-list" class="cards-list"></div>
+      <p class="empty-msg" id="recent-empty" hidden>Ainda não há pedidos. Toca em "Adicionar pedido" para começar.</p>
+    </div>
+  </section>
+
+  <!-- ===================== LISTA ===================== -->
+  <section id="view-lista" class="view">
+    <div class="toolbar">
+      <input type="search" id="search-input" placeholder="Pesquisar por nome, clube...">
+      <div class="filter-chips" id="filter-chips">
+        <button class="chip active" data-filter="all">Todos</button>
+        <button class="chip" data-filter="pendente-pagamento">Por pagar</button>
+        <button class="chip" data-filter="pendente-entrega">Por entregar</button>
+        <button class="chip" data-filter="concluido">Concluídos</button>
+      </div>
+    </div>
+    <div id="orders-list" class="cards-list"></div>
+    <p class="empty-msg" id="orders-empty" hidden>Nenhum pedido encontrado.</p>
+  </section>
+
+  <!-- ===================== DEFINIÇÕES ===================== -->
+  <section id="view-defs" class="view">
+    <div class="settings-block">
+      <h2>Clubes / Seleções</h2>
+      <p class="hint">Gere a lista de clubes e seleções disponíveis ao criar um pedido.</p>
+      <div class="add-inline">
+        <input type="text" id="new-club-input" placeholder="Nome do clube ou seleção">
+        <button class="btn-secondary" id="btn-add-club">Adicionar</button>
+      </div>
+      <ul id="clubs-list" class="tags-list"></ul>
+    </div>
+
+    <div class="settings-block">
+      <h2>Preços base</h2>
+      <p class="hint">Definidos automaticamente ao escolher o tipo de artigo (podes sempre ajustar no pedido).</p>
+      <div class="price-grid">
+        <label>T-shirt
+          <input type="number" min="0" step="0.5" id="price-tshirt">
+        </label>
+        <label>Camisola
+          <input type="number" min="0" step="0.5" id="price-camisola">
+        </label>
+        <label>Kit
+          <input type="number" min="0" step="0.5" id="price-kit">
+        </label>
+        <label>Extra por customização
+          <input type="number" min="0" step="0.5" id="price-custom">
+        </label>
+      </div>
+    </div>
+
+    <div class="settings-block">
+      <h2>Dados</h2>
+      <p class="hint">Faz uma cópia de segurança dos teus pedidos ou restaura a partir de um ficheiro.</p>
+      <div class="data-actions">
+        <button class="btn-secondary" id="btn-export">Exportar backup</button>
+        <button class="btn-secondary" id="btn-import">Importar backup</button>
+        <input type="file" id="import-file" accept="application/json" hidden>
+        <button class="btn-danger" id="btn-clear-all">Apagar tudo</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<nav class="bottom-nav">
+  <button class="nav-item active" data-view="home">
+    <span class="nav-icon">🏠</span><span>Início</span>
+  </button>
+  <button class="nav-item" data-view="lista">
+    <span class="nav-icon">📋</span><span>Lista</span>
+  </button>
+  <button class="nav-item" data-view="defs">
+    <span class="nav-icon">⚙️</span><span>Definições</span>
+  </button>
+</nav>
+
+<!-- ===================== MODAL: FORM PEDIDO ===================== -->
+<div class="modal-overlay" id="modal-overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-header">
+      <h2 id="modal-title">Novo pedido</h2>
+      <button class="btn-close" id="btn-close-modal" aria-label="Fechar">✕</button>
+    </div>
+    <form id="order-form" class="modal-body">
+      <input type="hidden" id="order-id">
+
+      <label>Nome do comprador *
+        <input type="text" id="f-nome" required>
+      </label>
+
+      <label>Número de telemóvel *
+        <input type="tel" id="f-telemovel" required placeholder="9xx xxx xxx">
+      </label>
+
+      <label>Tipo de artigo *
+        <select id="f-tipo" required>
+          <option value="T-shirt">T-shirt</option>
+          <option value="Camisola">Camisola</option>
+          <option value="Kit">Kit</option>
+        </select>
+      </label>
+
+      <label>Clube / Seleção *
+        <select id="f-clube" required></select>
+      </label>
+
+      <label>Tamanho *
+        <select id="f-tamanho" required>
+          <option value="XS">XS</option>
+          <option value="S">S</option>
+          <option value="M" selected>M</option>
+          <option value="L">L</option>
+          <option value="XL">XL</option>
+          <option value="XXL">XXL</option>
+          <option value="3XL">3XL</option>
+          <option value="Criança">Criança</option>
+        </select>
+      </label>
+
+      <div class="toggle-row">
+        <span>Customizado (nome/número nas costas)</span>
+        <label class="switch">
+          <input type="checkbox" id="f-customizado">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="custom-fields" id="custom-fields" hidden>
+        <label>Nome customizado
+          <input type="text" id="f-custom-nome" placeholder="Ex: RONALDO">
+        </label>
+        <label>Número customizado
+          <input type="text" id="f-custom-numero" placeholder="Ex: 7" inputmode="numeric" maxlength="3">
+        </label>
+      </div>
+
+      <label>Preço (€) *
+        <input type="number" id="f-preco" min="0" step="0.5" required>
+      </label>
+
+      <div class="toggle-row">
+        <span>Pago</span>
+        <label class="switch">
+          <input type="checkbox" id="f-pago">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <span>Entregue</span>
+        <label class="switch">
+          <input type="checkbox" id="f-entregue">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <label>Observações
+        <textarea id="f-obs" rows="3" placeholder="Notas adicionais..."></textarea>
+      </label>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-danger" id="btn-delete-order" hidden>Eliminar</button>
+        <button type="submit" class="btn-primary">Guardar pedido</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>
