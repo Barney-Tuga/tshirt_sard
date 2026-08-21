@@ -7,9 +7,11 @@ const DEFAULT_CLUBS = [
   'Real Madrid', 'FC Barcelona', 'Seleção do Brasil', 'Seleção de Argentina',
   'Manchester City', 'Manchester United'
 ];
+const DEFAULT_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', 'Criança'];
 
 const DEFAULT_SETTINGS = {
   clubs: DEFAULT_CLUBS,
+  sizes: DEFAULT_SIZES,
   prices: { 'T-shirt': 15, 'Camisola': 25, 'Kit': 45, custom: 5 }
 };
 
@@ -28,6 +30,7 @@ function loadSettings() {
     const s = JSON.parse(localStorage.getItem(STORAGE_SETTINGS));
     if (!s) return structuredClone(DEFAULT_SETTINGS);
     s.clubs = s.clubs || DEFAULT_CLUBS;
+    s.sizes = s.sizes || DEFAULT_SIZES;
     s.prices = { ...DEFAULT_SETTINGS.prices, ...(s.prices || {}) };
     return s;
   } catch { return structuredClone(DEFAULT_SETTINGS); }
@@ -206,6 +209,13 @@ function renderSettings() {
       ${escapeHTML(club)} <button aria-label="Remover">✕</button>
     </li>
   `).join('');
+
+  const sizesList = document.getElementById('sizes-list');
+  sizesList.innerHTML = settings.sizes.map(size => `
+    <li data-size="${escapeHTML(size)}">
+      ${escapeHTML(size)} <button aria-label="Remover">✕</button>
+    </li>
+  `).join('');
 }
 
 document.getElementById('btn-add-club').addEventListener('click', () => {
@@ -236,6 +246,38 @@ document.getElementById('clubs-list').addEventListener('click', (e) => {
   const li = btn.closest('li');
   const club = li.dataset.club;
   settings.clubs = settings.clubs.filter(c => c !== club);
+  saveSettings(settings);
+  renderSettings();
+});
+
+document.getElementById('btn-add-size').addEventListener('click', () => {
+  const input = document.getElementById('new-size-input');
+  const value = input.value.trim();
+  if (!value) return;
+  if (settings.sizes.some(size => size.toLowerCase() === value.toLowerCase())) {
+    showToast('Esse tamanho já existe');
+    return;
+  }
+  settings.sizes.push(value);
+  saveSettings(settings);
+  input.value = '';
+  renderSettings();
+  showToast('Tamanho adicionado');
+});
+
+document.getElementById('new-size-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    document.getElementById('btn-add-size').click();
+  }
+});
+
+document.getElementById('sizes-list').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  const li = btn.closest('li');
+  const size = li.dataset.size;
+  settings.sizes = settings.sizes.filter(item => item !== size);
   saveSettings(settings);
   renderSettings();
 });
@@ -315,9 +357,15 @@ function populateClubSelect() {
   clubeSelect.innerHTML = settings.clubs.map(c => `<option value="${escapeHTML(c)}">${escapeHTML(c)}</option>`).join('');
 }
 
+function populateSizeSelect() {
+  const sizeSelect = document.getElementById('f-tamanho');
+  sizeSelect.innerHTML = settings.sizes.map(size => `<option value="${escapeHTML(size)}">${escapeHTML(size)}</option>`).join('');
+}
+
 function openModal(order = null) {
   orderForm.reset();
   populateClubSelect();
+  populateSizeSelect();
   customFields.hidden = true;
 
   if (order) {
@@ -327,7 +375,12 @@ function openModal(order = null) {
     document.getElementById('f-telemovel').value = order.telemovel;
     document.getElementById('f-tipo').value = order.tipo;
     document.getElementById('f-clube').value = order.clube;
-    document.getElementById('f-tamanho').value = order.tamanho || 'M';
+    const sizeSelect = document.getElementById('f-tamanho');
+    const orderSize = order.tamanho || settings.sizes[0] || 'M';
+    if (!settings.sizes.includes(orderSize)) {
+      sizeSelect.insertAdjacentHTML('beforeend', `<option value="${escapeHTML(orderSize)}">${escapeHTML(orderSize)}</option>`);
+    }
+    sizeSelect.value = orderSize;
     document.getElementById('f-customizado').checked = !!order.customizado;
     document.getElementById('f-custom-nome').value = order.customNome || '';
     document.getElementById('f-custom-numero').value = order.customNumero || '';
