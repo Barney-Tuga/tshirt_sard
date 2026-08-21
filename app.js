@@ -1,6 +1,7 @@
 // ==================== STORAGE ====================
 const STORAGE_ORDERS = 'pedidos_kit_orders_v1';
 const STORAGE_SETTINGS = 'pedidos_kit_settings_v1';
+const IMAGE_IMPORT_MARKER = 'pedidos_kit_image_import_v1';
 
 const DEFAULT_CLUBS = [
   'Seleção de Portugal', 'Benfica', 'FC Porto', 'Sporting CP',
@@ -8,11 +9,16 @@ const DEFAULT_CLUBS = [
   'Manchester City', 'Manchester United'
 ];
 const DEFAULT_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', 'Criança'];
+const DEFAULT_EQUIPMENT = ['Principal', 'Secundário', 'Terciário', 'Especial', 'Versão Jogador', 'Retro'];
+const IMAGE_CLUBS = ['PORTO', 'PORTUGAL', 'BÉLGICA', 'SUÍÇA', 'ARGENTINA', 'MAN. CITY', 'BARCELONA'];
+const IMAGE_SIZES = ['28 (14/15)', '18 (4/5)', '20 (6/7)', '22 (8/9)'];
 
 const DEFAULT_SETTINGS = {
   clubs: DEFAULT_CLUBS,
   sizes: DEFAULT_SIZES,
-  prices: { 'T-shirt': 15, 'Camisola': 25, 'Kit': 45, custom: 5 }
+  equipment: DEFAULT_EQUIPMENT,
+  costs: { 'T-shirt': 15, 'Camisola': 25, 'Kit': 45, custom: 5, patch: 0, special: 0 },
+  prices: { 'T-shirt': 15, 'Camisola': 25, 'Kit': 45, custom: 5, patch: 0, special: 0 }
 };
 
 function loadOrders() {
@@ -31,6 +37,8 @@ function loadSettings() {
     if (!s) return structuredClone(DEFAULT_SETTINGS);
     s.clubs = s.clubs || DEFAULT_CLUBS;
     s.sizes = s.sizes || DEFAULT_SIZES;
+    s.equipment = [...new Set([...(s.equipment || []), ...DEFAULT_EQUIPMENT])];
+    s.costs = { ...DEFAULT_SETTINGS.costs, ...(s.costs || s.prices || {}) };
     s.prices = { ...DEFAULT_SETTINGS.prices, ...(s.prices || {}) };
     return s;
   } catch { return structuredClone(DEFAULT_SETTINGS); }
@@ -40,10 +48,93 @@ function saveSettings(settings) {
   localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(settings));
 }
 
+function isSpecialEquipment(equipment) {
+  return ['especial', 'versão jogador', 'retro'].includes((equipment || '').trim().toLowerCase());
+}
+
+function orderCost(order) {
+  if (order.custo !== undefined) return Number(order.custo) || 0;
+  const cost = settings.costs[order.tipo] || 0;
+  const equipmentCost = isSpecialEquipment(order.equipamento) ? (settings.costs.special || 0) : 0;
+  const customCost = order.customizado ? (settings.costs.custom || 0) : 0;
+  const patchCost = order.patchado ? (settings.costs.patch || 0) : 0;
+  return cost + equipmentCost + customCost + patchCost;
+}
+
+function orderProfit(order) {
+  return Number(order.preco || 0) - orderCost(order);
+}
+
 let orders = loadOrders();
 let settings = loadSettings();
 let currentFilter = 'all';
 let currentSearch = '';
+
+const IMAGE_ORDERS = [
+  ['Paulo (Acácio)', 'T-shirt', 'PORTO', 'Terciário', 'M', '', 20, false, false],
+  ['Braziela', 'T-shirt', 'PORTUGAL', 'Principal', 'M', 'RONALDO / 7', 20, false, true],
+  ['Marco Matrículas', 'T-shirt', 'PORTO', 'Terciário', 'M', '', 20, false, false],
+  ['Marco Matrículas', 'T-shirt', 'PORTO', 'Terciário', 'M', '', 20, false, false],
+  ['Gil (Salvaterra)', 'Kit', 'BÉLGICA', 'Principal', '28 (14/15)', 'ACRESCE PORTE', 25, false, false],
+  ['Gil (Salvaterra)', 'Kit', 'SUÍÇA', 'Principal', '28 (14/15)', '', 25, false, false],
+  ['Fábio (Martins)', 'T-shirt', 'PORTO', 'Terciário', 'XL', '', 20, false, false],
+  ['Fábio (Martins)', 'T-shirt', 'PORTO', 'Especial', 'M', 'AZULEIJO', 25, false, false],
+  ['Albertino (Face)', 'T-shirt', 'PORTO', 'Terciário', 'S', '', 20, false, false],
+  ['Cláudio Vaz', 'T-shirt', 'ARGENTINA', 'Principal', 'M', 'MESSI / 10', 25, false, false],
+  ['Luís ARService', 'T-shirt', 'PORTO', 'Terciário', '3XL', 'LUIS / 23', 25, false, false],
+  ['Bruno (São Pedro da cova)', 'T-shirt', 'PORTO', 'Secundário', 'S', '', 20, false, false],
+  ['Bruno (São Pedro da cova)', 'T-shirt', 'PORTO', 'Secundário', 'XL', '', 20, false, false],
+  ['Bruno (São Pedro da cova)', 'Kit', 'PORTO', 'Secundário', '28 (14/15)', 'COM MEIAS', 30, false, false],
+  ['Bruno (São Pedro da cova)', 'T-shirt', 'PORTO', 'Terciário', 'S', '', 20, false, false],
+  ['Dani', 'Kit', 'PORTO', 'Principal', '18 (4/5)', 'VALENTIM', 25, false, true],
+  ['Dani', 'Kit', 'PORTO', 'Principal', '18 (4/5)', 'FRANCISCO / 9', 30, true, false],
+  ['Dani', 'Camisola', 'PORTO', 'Secundário', 'M', '', 25, true, true],
+  ['Dani', 'Versão Jogador', 'PORTO', 'Principal', 'XL', '', 25, false, false],
+  ['Dani', 'T-shirt', 'PORTO', 'Secundário', 'S', 'CATARINA', 25, false, false],
+  ['Pedro (Sernox)', 'T-shirt', 'PORTO', 'Principal', 'M', 'LARA / 23', 25, true, false],
+  ['Pedro (Sernox)', 'T-shirt', 'PORTO', 'Especial', 'XL', 'AZULEIJO', 25, false, false],
+  ['Cpcms', 'T-shirt', 'PORTUGAL', 'Secundário', 'L', 'RAFALELO / 17 / P', 30, false, true],
+  ['Cunha', 'T-shirt', 'MAN. CITY', 'Principal', 'S', 'HAALAND / 9 - AZUL', 30, false, true],
+  ['Rui (Face)', 'Kit', 'BARCELONA', 'Secundário', '28 (14/15)', 'VICENTE / 19 / CO', 25, false, true],
+  ['Tiago (Face)', 'Kit', 'PORTO', 'Secundário', '20 (6/7)', 'ROSA SALMAO', 20, false, false],
+  ['Tiago (Face)', 'Kit', 'PORTO', 'Secundário', '22 (8/9)', 'ROSA SALMAO', 20, false, false],
+  ['Tiago (Face)', 'Kit', 'PORTO', 'Secundário', '20 (6/7)', 'ROSA SALMAO', 20, false, false]
+];
+
+function importImageOrders() {
+  if (localStorage.getItem(IMAGE_IMPORT_MARKER)) return;
+
+  const importedAt = Date.now();
+  const importedOrders = IMAGE_ORDERS.map((item, index) => {
+    const [nome, tipo, clube, equipamento, tamanho, observacoes, preco, pago, personalizado] = item;
+    return {
+      id: `imagem-${index + 1}`,
+      nome,
+      telemovel: '',
+      tipo,
+      clube,
+      equipamento,
+      tamanho,
+      customizado: personalizado,
+      customNome: personalizado ? observacoes.split(' / ')[0] : '',
+      customNumero: personalizado && observacoes.includes(' / ') ? observacoes.split(' / ')[1] : '',
+      preco,
+      pago,
+      entregue: index === 1,
+      observacoes,
+      createdAt: importedAt + index
+    };
+  });
+
+  orders = [...orders, ...importedOrders];
+  saveOrders(orders);
+  settings.clubs = [...new Set([...settings.clubs, ...IMAGE_CLUBS])];
+  settings.sizes = [...new Set([...settings.sizes, ...IMAGE_SIZES])];
+  saveSettings(settings);
+  localStorage.setItem(IMAGE_IMPORT_MARKER, 'done');
+}
+
+importImageOrders();
 
 // ==================== NAVIGATION ====================
 const views = document.querySelectorAll('.view');
@@ -101,6 +192,8 @@ function matchesSearch(order, term) {
   const t = term.toLowerCase();
   return (order.nome || '').toLowerCase().includes(t)
     || (order.clube || '').toLowerCase().includes(t)
+    || (order.equipamento || '').toLowerCase().includes(t)
+    || (order.patchNome || '').toLowerCase().includes(t)
     || (order.telemovel || '').toLowerCase().includes(t)
     || (order.tipo || '').toLowerCase().includes(t);
 }
@@ -110,13 +203,17 @@ function orderCardHTML(order) {
   const customLine = order.customizado
     ? ` · ${order.customNome || ''}${order.customNumero ? ' #' + order.customNumero : ''}`
     : '';
+  const patchLine = order.patchado && order.patchNome
+    ? ` · Patch: ${escapeHTML(order.patchNome)}`
+    : '';
+  const equipamentoLine = order.equipamento ? ` · ${escapeHTML(order.equipamento)}` : '';
   const tamanhoLine = order.tamanho ? ` · Tam. ${escapeHTML(order.tamanho)}` : '';
   return `
     <div class="order-card" data-id="${order.id}">
       <div class="order-card-top">
         <div>
           <div class="order-card-title">${escapeHTML(order.nome)}</div>
-          <div class="order-card-sub">${escapeHTML(order.tipo)} · ${escapeHTML(order.clube)}${tamanhoLine}${customLine}</div>
+          <div class="order-card-sub">${escapeHTML(order.tipo)} · ${escapeHTML(order.clube)}${equipamentoLine}${tamanhoLine}${customLine}${patchLine}</div>
         </div>
         <div class="order-card-price">${formatMoney(order.preco)}</div>
       </div>
@@ -138,6 +235,8 @@ function renderHome() {
   const porPagar = orders.filter(o => !o.pago).length;
   const receita = orders.filter(o => o.pago).reduce((s, o) => s + Number(o.preco || 0), 0);
   const receitaPendente = orders.filter(o => !o.pago).reduce((s, o) => s + Number(o.preco || 0), 0);
+  const lucro = orders.reduce((s, o) => s + orderProfit(o), 0);
+  const lucroPendente = orders.filter(o => !o.pago).reduce((s, o) => s + orderProfit(o), 0);
 
   const now = new Date();
   const receitaMes = orders
@@ -150,6 +249,8 @@ function renderHome() {
   document.getElementById('stat-receita').textContent = formatMoney(receita);
   document.getElementById('stat-receita-pendente').textContent = formatMoney(receitaPendente);
   document.getElementById('stat-mes').textContent = formatMoney(receitaMes);
+  document.getElementById('stat-lucro').textContent = formatMoney(lucro);
+  document.getElementById('stat-lucro-pendente').textContent = formatMoney(lucroPendente);
 
   const recent = [...orders].sort((a, b) => b.createdAt - a.createdAt).slice(0, 5);
   const recentList = document.getElementById('recent-list');
@@ -198,10 +299,18 @@ document.getElementById('app').addEventListener('click', (e) => {
 
 // ==================== SETTINGS ====================
 function renderSettings() {
-  document.getElementById('price-tshirt').value = settings.prices['T-shirt'];
-  document.getElementById('price-camisola').value = settings.prices['Camisola'];
-  document.getElementById('price-kit').value = settings.prices['Kit'];
-  document.getElementById('price-custom').value = settings.prices.custom;
+  document.getElementById('price-tshirt').value = settings.costs['T-shirt'];
+  document.getElementById('price-camisola').value = settings.costs['Camisola'];
+  document.getElementById('price-kit').value = settings.costs['Kit'];
+  document.getElementById('price-custom').value = settings.costs.custom;
+  document.getElementById('price-patch').value = settings.costs.patch;
+  document.getElementById('price-special').value = settings.costs.special;
+  document.getElementById('sale-price-tshirt').value = settings.prices['T-shirt'];
+  document.getElementById('sale-price-camisola').value = settings.prices['Camisola'];
+  document.getElementById('sale-price-kit').value = settings.prices['Kit'];
+  document.getElementById('sale-price-custom').value = settings.prices.custom;
+  document.getElementById('sale-price-patch').value = settings.prices.patch;
+  document.getElementById('sale-price-special').value = settings.prices.special;
 
   const clubsList = document.getElementById('clubs-list');
   clubsList.innerHTML = settings.clubs.map(club => `
@@ -214,6 +323,13 @@ function renderSettings() {
   sizesList.innerHTML = settings.sizes.map(size => `
     <li data-size="${escapeHTML(size)}">
       ${escapeHTML(size)} <button aria-label="Remover">✕</button>
+    </li>
+  `).join('');
+
+  const equipmentList = document.getElementById('equipment-list');
+  equipmentList.innerHTML = settings.equipment.map(equipment => `
+    <li data-equipment="${escapeHTML(equipment)}">
+      ${escapeHTML(equipment)} <button aria-label="Remover">✕</button>
     </li>
   `).join('');
 }
@@ -282,14 +398,63 @@ document.getElementById('sizes-list').addEventListener('click', (e) => {
   renderSettings();
 });
 
-['price-tshirt', 'price-camisola', 'price-kit', 'price-custom'].forEach(id => {
+document.getElementById('btn-add-equipment').addEventListener('click', () => {
+  const input = document.getElementById('new-equipment-input');
+  const value = input.value.trim();
+  if (!value) return;
+  if (settings.equipment.some(equipment => equipment.toLowerCase() === value.toLowerCase())) {
+    showToast('Esse tipo de equipamento já existe');
+    return;
+  }
+  settings.equipment.push(value);
+  saveSettings(settings);
+  input.value = '';
+  renderSettings();
+  showToast('Tipo de equipamento adicionado');
+});
+
+document.getElementById('new-equipment-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    document.getElementById('btn-add-equipment').click();
+  }
+});
+
+document.getElementById('equipment-list').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  const li = btn.closest('li');
+  const equipment = li.dataset.equipment;
+  settings.equipment = settings.equipment.filter(item => item !== equipment);
+  saveSettings(settings);
+  renderSettings();
+});
+
+['price-tshirt', 'price-camisola', 'price-kit', 'price-custom', 'price-patch', 'price-special'].forEach(id => {
   document.getElementById(id).addEventListener('change', () => {
-    settings.prices['T-shirt'] = Number(document.getElementById('price-tshirt').value) || 0;
-    settings.prices['Camisola'] = Number(document.getElementById('price-camisola').value) || 0;
-    settings.prices['Kit'] = Number(document.getElementById('price-kit').value) || 0;
-    settings.prices.custom = Number(document.getElementById('price-custom').value) || 0;
+    settings.costs['T-shirt'] = Number(document.getElementById('price-tshirt').value) || 0;
+    settings.costs['Camisola'] = Number(document.getElementById('price-camisola').value) || 0;
+    settings.costs['Kit'] = Number(document.getElementById('price-kit').value) || 0;
+    settings.costs.custom = Number(document.getElementById('price-custom').value) || 0;
+    settings.costs.patch = Number(document.getElementById('price-patch').value) || 0;
+    settings.costs.special = Number(document.getElementById('price-special').value) || 0;
     saveSettings(settings);
-    showToast('Preços atualizados');
+    renderHome();
+    showToast('Preços base atualizados');
+  });
+});
+
+['sale-price-tshirt', 'sale-price-camisola', 'sale-price-kit', 'sale-price-custom', 'sale-price-patch', 'sale-price-special'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => {
+    settings.prices['T-shirt'] = Number(document.getElementById('sale-price-tshirt').value) || 0;
+    settings.prices['Camisola'] = Number(document.getElementById('sale-price-camisola').value) || 0;
+    settings.prices['Kit'] = Number(document.getElementById('sale-price-kit').value) || 0;
+    settings.prices.custom = Number(document.getElementById('sale-price-custom').value) || 0;
+    settings.prices.patch = Number(document.getElementById('sale-price-patch').value) || 0;
+    settings.prices.special = Number(document.getElementById('sale-price-special').value) || 0;
+    saveSettings(settings);
+    renderHome();
+    showToast('Preços de venda atualizados');
   });
 });
 
@@ -321,6 +486,11 @@ document.getElementById('import-file').addEventListener('change', (e) => {
       }
       if (data.settings) {
         settings = { ...DEFAULT_SETTINGS, ...data.settings };
+        settings.clubs = data.settings.clubs || DEFAULT_SETTINGS.clubs;
+        settings.sizes = data.settings.sizes || DEFAULT_SETTINGS.sizes;
+        settings.equipment = data.settings.equipment || DEFAULT_SETTINGS.equipment;
+        settings.costs = { ...DEFAULT_SETTINGS.costs, ...(data.settings.costs || data.settings.prices || {}) };
+        settings.prices = { ...DEFAULT_SETTINGS.prices, ...(data.settings.prices || {}) };
         saveSettings(settings);
       }
       renderSettings();
@@ -348,6 +518,8 @@ const modalOverlay = document.getElementById('modal-overlay');
 const orderForm = document.getElementById('order-form');
 const customCheckbox = document.getElementById('f-customizado');
 const customFields = document.getElementById('custom-fields');
+const patchCheckbox = document.getElementById('f-patch');
+const patchFields = document.getElementById('patch-fields');
 const deleteBtn = document.getElementById('btn-delete-order');
 const tipoSelect = document.getElementById('f-tipo');
 const precoInput = document.getElementById('f-preco');
@@ -362,6 +534,14 @@ function populateSizeSelect() {
   const sizeSelect = document.getElementById('f-tamanho');
   sizeSelect.innerHTML = settings.sizes.map(size => `<option value="${escapeHTML(size)}">${escapeHTML(size)}</option>`).join('');
   refreshSearchableSelect(sizeSelect);
+}
+
+function populateEquipmentSelect() {
+  const equipmentSelect = document.getElementById('f-equipamento');
+  equipmentSelect.innerHTML = settings.equipment.map(equipment =>
+    `<option value="${escapeHTML(equipment)}">${escapeHTML(equipment)}</option>`
+  ).join('');
+  refreshSearchableSelect(equipmentSelect);
 }
 
 function createSearchableSelect(select) {
@@ -461,35 +641,54 @@ function openModal(order = null) {
   orderForm.reset();
   populateClubSelect();
   populateSizeSelect();
+  populateEquipmentSelect();
+  refreshSearchableSelect(tipoSelect);
+  refreshSearchableSelect(document.getElementById('f-equipamento'));
   customFields.hidden = true;
+  patchFields.hidden = true;
 
   if (order) {
     document.getElementById('modal-title').textContent = 'Editar pedido';
     document.getElementById('order-id').value = order.id;
     document.getElementById('f-nome').value = order.nome;
     document.getElementById('f-telemovel').value = order.telemovel;
+    if (![...tipoSelect.options].some(option => option.value === order.tipo)) {
+      tipoSelect.insertAdjacentHTML('beforeend', `<option value="${escapeHTML(order.tipo)}">${escapeHTML(order.tipo)}</option>`);
+    }
     document.getElementById('f-tipo').value = order.tipo;
     document.getElementById('f-clube').value = order.clube;
+    const equipmentSelect = document.getElementById('f-equipamento');
+    const orderEquipment = order.equipamento || settings.equipment[0] || 'Principal';
+    if (!settings.equipment.includes(orderEquipment)) {
+      equipmentSelect.insertAdjacentHTML('beforeend', `<option value="${escapeHTML(orderEquipment)}">${escapeHTML(orderEquipment)}</option>`);
+    }
+    equipmentSelect.value = orderEquipment;
     const sizeSelect = document.getElementById('f-tamanho');
     const orderSize = order.tamanho || settings.sizes[0] || 'M';
     if (!settings.sizes.includes(orderSize)) {
       sizeSelect.insertAdjacentHTML('beforeend', `<option value="${escapeHTML(orderSize)}">${escapeHTML(orderSize)}</option>`);
     }
     sizeSelect.value = orderSize;
+    refreshSearchableSelect(tipoSelect);
     refreshSearchableSelect(document.getElementById('f-clube'));
+    refreshSearchableSelect(equipmentSelect);
     refreshSearchableSelect(sizeSelect);
     document.getElementById('f-customizado').checked = !!order.customizado;
     document.getElementById('f-custom-nome').value = order.customNome || '';
     document.getElementById('f-custom-numero').value = order.customNumero || '';
+    patchCheckbox.checked = !!order.patchado;
+    document.getElementById('f-patch-nome').value = order.patchNome || '';
     document.getElementById('f-preco').value = order.preco;
     document.getElementById('f-pago').checked = !!order.pago;
     document.getElementById('f-entregue').checked = !!order.entregue;
     document.getElementById('f-obs').value = order.observacoes || '';
     customFields.hidden = !order.customizado;
+    patchFields.hidden = !order.patchado;
     deleteBtn.hidden = false;
   } else {
     document.getElementById('modal-title').textContent = 'Novo pedido';
     document.getElementById('order-id').value = '';
+    document.getElementById('f-telemovel').value = '910000000';
     document.getElementById('f-preco').value = settings.prices['T-shirt'];
     deleteBtn.hidden = true;
   }
@@ -512,14 +711,24 @@ customCheckbox.addEventListener('change', () => {
   applyAutoPrice();
 });
 
+patchCheckbox.addEventListener('change', () => {
+  patchFields.hidden = !patchCheckbox.checked;
+  applyAutoPrice();
+});
+
 tipoSelect.addEventListener('change', applyAutoPrice);
+document.getElementById('f-equipamento').addEventListener('change', applyAutoPrice);
 
 function applyAutoPrice() {
   // only auto-fill for new orders (empty id) to avoid overriding manual edits unexpectedly
   if (document.getElementById('order-id').value) return;
   const base = settings.prices[tipoSelect.value] || 0;
+  const equipmentPrice = isSpecialEquipment(document.getElementById('f-equipamento').value)
+    ? (settings.prices.special || 0)
+    : 0;
   const extra = customCheckbox.checked ? (settings.prices.custom || 0) : 0;
-  precoInput.value = base + extra;
+  const patchPrice = patchCheckbox.checked ? (settings.prices.patch || 0) : 0;
+  precoInput.value = base + equipmentPrice + extra + patchPrice;
 }
 
 deleteBtn.addEventListener('click', () => {
@@ -538,6 +747,7 @@ orderForm.addEventListener('submit', (e) => {
   e.preventDefault();
   const id = document.getElementById('order-id').value;
   const isCustom = customCheckbox.checked;
+  const hasPatch = patchCheckbox.checked;
 
   const orderData = {
     id: id || crypto.randomUUID(),
@@ -545,11 +755,17 @@ orderForm.addEventListener('submit', (e) => {
     telemovel: document.getElementById('f-telemovel').value.trim(),
     tipo: tipoSelect.value,
     clube: document.getElementById('f-clube').value,
+    equipamento: document.getElementById('f-equipamento').value,
     tamanho: document.getElementById('f-tamanho').value,
     customizado: isCustom,
     customNome: isCustom ? document.getElementById('f-custom-nome').value.trim() : '',
     customNumero: isCustom ? document.getElementById('f-custom-numero').value.trim() : '',
+    patchado: hasPatch,
+    patchNome: hasPatch ? document.getElementById('f-patch-nome').value.trim() : '',
     preco: Number(precoInput.value) || 0,
+    custo: id
+      ? (orders.find(o => o.id === id).custo ?? ((settings.costs[tipoSelect.value] || 0) + (isSpecialEquipment(document.getElementById('f-equipamento').value) ? (settings.costs.special || 0) : 0) + (isCustom ? (settings.costs.custom || 0) : 0) + (hasPatch ? (settings.costs.patch || 0) : 0)))
+      : (settings.costs[tipoSelect.value] || 0) + (isSpecialEquipment(document.getElementById('f-equipamento').value) ? (settings.costs.special || 0) : 0) + (isCustom ? (settings.costs.custom || 0) : 0) + (hasPatch ? (settings.costs.patch || 0) : 0),
     pago: document.getElementById('f-pago').checked,
     entregue: document.getElementById('f-entregue').checked,
     observacoes: document.getElementById('f-obs').value.trim(),
@@ -571,6 +787,7 @@ orderForm.addEventListener('submit', (e) => {
 // ==================== INIT ====================
 createSearchableSelect(document.getElementById('f-tipo'));
 createSearchableSelect(document.getElementById('f-clube'));
+createSearchableSelect(document.getElementById('f-equipamento'));
 createSearchableSelect(document.getElementById('f-tamanho'));
 switchView('home');
 
