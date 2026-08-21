@@ -49,6 +49,14 @@
         <span class="stat-value" id="stat-mes">0€</span>
         <span class="stat-label">Este mês</span>
       </div>
+      <div class="stat-card success">
+        <span class="stat-value" id="stat-lucro">0€</span>
+        <span class="stat-label">Lucro total</span>
+      </div>
+      <div class="stat-card muted">
+        <span class="stat-value" id="stat-lucro-pendente">0€</span>
+        <span class="stat-label">Lucro pendente</span>
+      </div>
     </div>
 
     <div class="home-actions">
@@ -102,8 +110,18 @@
     </div>
 
     <div class="settings-block">
+      <h2>Tipos de equipamento</h2>
+      <p class="hint">Gere os tipos de equipamento disponíveis ao criar um pedido.</p>
+      <div class="add-inline">
+        <input type="text" id="new-equipment-input" placeholder="Novo tipo de equipamento">
+        <button class="btn-secondary" id="btn-add-equipment">Adicionar</button>
+      </div>
+      <ul id="equipment-list" class="tags-list"></ul>
+    </div>
+
+    <div class="settings-block">
       <h2>Preços base</h2>
-      <p class="hint">Definidos automaticamente ao escolher o tipo de artigo (podes sempre ajustar no pedido).</p>
+      <p class="hint">Preço de compra de cada artigo, usado para calcular o lucro.</p>
       <div class="price-grid">
         <label>T-shirt
           <input type="number" min="0" step="0.5" id="price-tshirt">
@@ -116,6 +134,37 @@
         </label>
         <label>Extra por customização
           <input type="number" min="0" step="0.5" id="price-custom">
+        </label>
+        <label>Patch
+          <input type="number" min="0" step="0.5" id="price-patch">
+        </label>
+        <label>Especial / Versão Jogador / Retro
+          <input type="number" min="0" step="0.5" id="price-special">
+        </label>
+      </div>
+    </div>
+
+    <div class="settings-block">
+      <h2>Preços de venda</h2>
+      <p class="hint">Preço cobrado ao cliente. Podes sempre ajustá-lo no pedido.</p>
+      <div class="price-grid">
+        <label>T-shirt
+          <input type="number" min="0" step="0.5" id="sale-price-tshirt">
+        </label>
+        <label>Camisola
+          <input type="number" min="0" step="0.5" id="sale-price-camisola">
+        </label>
+        <label>Kit
+          <input type="number" min="0" step="0.5" id="sale-price-kit">
+        </label>
+        <label>Extra por customização
+          <input type="number" min="0" step="0.5" id="sale-price-custom">
+        </label>
+        <label>Patch
+          <input type="number" min="0" step="0.5" id="sale-price-patch">
+        </label>
+        <label>Especial / Versão Jogador / Retro
+          <input type="number" min="0" step="0.5" id="sale-price-special">
         </label>
       </div>
     </div>
@@ -176,6 +225,10 @@
         <select id="f-clube" required></select>
       </label>
 
+      <label>Tipo de equipamento *
+        <select id="f-equipamento" required></select>
+      </label>
+
       <label>Tamanho *
         <select id="f-tamanho" required></select>
       </label>
@@ -188,6 +241,20 @@
         </label>
       </div>
 
+      <div class="toggle-row">
+        <span>Patch</span>
+        <label class="switch">
+          <input type="checkbox" id="f-patch">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="custom-fields" id="patch-fields" hidden>
+        <label>Nome do patch
+          <input type="text" id="f-patch-nome" placeholder="Ex: Liga dos Campeões">
+        </label>
+      </div>
+
       <div class="custom-fields" id="custom-fields" hidden>
         <label>Nome customizado
           <input type="text" id="f-custom-nome" placeholder="Ex: RONALDO">
@@ -197,7 +264,7 @@
         </label>
       </div>
 
-      <label>Preço (€) *
+      <label>Preço de venda (€) *
         <input type="number" id="f-preco" min="0" step="0.5" required>
       </label>
 
