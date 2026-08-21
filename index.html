@@ -92,6 +92,16 @@
     </div>
 
     <div class="settings-block">
+      <h2>Tamanhos</h2>
+      <p class="hint">Gere a lista de tamanhos disponíveis ao criar um pedido.</p>
+      <div class="add-inline">
+        <input type="text" id="new-size-input" placeholder="Novo tamanho">
+        <button class="btn-secondary" id="btn-add-size">Adicionar</button>
+      </div>
+      <ul id="sizes-list" class="tags-list"></ul>
+    </div>
+
+    <div class="settings-block">
       <h2>Preços base</h2>
       <p class="hint">Definidos automaticamente ao escolher o tipo de artigo (podes sempre ajustar no pedido).</p>
       <div class="price-grid">
@@ -167,16 +177,7 @@
       </label>
 
       <label>Tamanho *
-        <select id="f-tamanho" required>
-          <option value="XS">XS</option>
-          <option value="S">S</option>
-          <option value="M" selected>M</option>
-          <option value="L">L</option>
-          <option value="XL">XL</option>
-          <option value="XXL">XXL</option>
-          <option value="3XL">3XL</option>
-          <option value="Criança">Criança</option>
-        </select>
+        <select id="f-tamanho" required></select>
       </label>
 
       <div class="toggle-row">
