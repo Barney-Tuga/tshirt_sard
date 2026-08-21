@@ -355,11 +355,106 @@ const precoInput = document.getElementById('f-preco');
 function populateClubSelect() {
   const clubeSelect = document.getElementById('f-clube');
   clubeSelect.innerHTML = settings.clubs.map(c => `<option value="${escapeHTML(c)}">${escapeHTML(c)}</option>`).join('');
+  refreshSearchableSelect(clubeSelect);
 }
 
 function populateSizeSelect() {
   const sizeSelect = document.getElementById('f-tamanho');
   sizeSelect.innerHTML = settings.sizes.map(size => `<option value="${escapeHTML(size)}">${escapeHTML(size)}</option>`).join('');
+  refreshSearchableSelect(sizeSelect);
+}
+
+function createSearchableSelect(select) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'searchable-select';
+  select.parentNode.insertBefore(wrapper, select);
+  wrapper.appendChild(select);
+  select.classList.add('searchable-select-native');
+
+  const trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.className = 'searchable-select-trigger';
+  trigger.setAttribute('aria-haspopup', 'listbox');
+  trigger.setAttribute('aria-expanded', 'false');
+
+  const menu = document.createElement('div');
+  menu.className = 'searchable-select-menu';
+  menu.hidden = true;
+
+  const search = document.createElement('input');
+  search.type = 'search';
+  search.className = 'searchable-select-search';
+  search.placeholder = 'Pesquisar opções...';
+  search.autocomplete = 'off';
+
+  const options = document.createElement('div');
+  options.className = 'searchable-select-options';
+  options.setAttribute('role', 'listbox');
+  menu.append(search, options);
+  wrapper.append(trigger, menu);
+
+  function renderOptions() {
+    const query = search.value.trim().toLowerCase();
+    const matchingOptions = [...select.options].filter(option =>
+      option.textContent.toLowerCase().includes(query)
+    );
+    options.innerHTML = matchingOptions.length
+      ? matchingOptions.map(option => `
+          <button type="button" class="searchable-select-option${option.selected ? ' selected' : ''}" data-value="${escapeHTML(option.value)}">
+            ${escapeHTML(option.textContent)}
+          </button>
+        `).join('')
+      : '<span class="searchable-select-empty">Nenhuma opção encontrada.</span>';
+  }
+
+  function close() {
+    wrapper.classList.remove('open');
+    menu.hidden = true;
+    trigger.setAttribute('aria-expanded', 'false');
+  }
+
+  trigger.addEventListener('click', () => {
+    const isOpen = !menu.hidden;
+    document.querySelectorAll('.searchable-select-menu').forEach(item => { item.hidden = true; });
+    document.querySelectorAll('.searchable-select').forEach(item => { item.classList.remove('open'); });
+    if (isOpen) {
+      close();
+      return;
+    }
+    search.value = '';
+    renderOptions();
+    wrapper.classList.add('open');
+    menu.hidden = false;
+    trigger.setAttribute('aria-expanded', 'true');
+    search.focus();
+  });
+
+  search.addEventListener('input', renderOptions);
+  options.addEventListener('click', (event) => {
+    const option = event.target.closest('.searchable-select-option');
+    if (!option) return;
+    select.value = option.dataset.value;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    close();
+    updateTrigger();
+  });
+
+  select.addEventListener('change', updateTrigger);
+
+  function updateTrigger() {
+    const selected = select.options[select.selectedIndex];
+    trigger.textContent = selected ? selected.textContent : 'Selecionar opção';
+  }
+
+  select._searchable = { renderOptions, updateTrigger };
+  updateTrigger();
+}
+
+function refreshSearchableSelect(select) {
+  if (select._searchable) {
+    select._searchable.updateTrigger();
+    select._searchable.renderOptions();
+  }
 }
 
 function openModal(order = null) {
@@ -381,6 +476,8 @@ function openModal(order = null) {
       sizeSelect.insertAdjacentHTML('beforeend', `<option value="${escapeHTML(orderSize)}">${escapeHTML(orderSize)}</option>`);
     }
     sizeSelect.value = orderSize;
+    refreshSearchableSelect(document.getElementById('f-clube'));
+    refreshSearchableSelect(sizeSelect);
     document.getElementById('f-customizado').checked = !!order.customizado;
     document.getElementById('f-custom-nome').value = order.customNome || '';
     document.getElementById('f-custom-numero').value = order.customNumero || '';
@@ -472,6 +569,9 @@ orderForm.addEventListener('submit', (e) => {
 });
 
 // ==================== INIT ====================
+createSearchableSelect(document.getElementById('f-tipo'));
+createSearchableSelect(document.getElementById('f-clube'));
+createSearchableSelect(document.getElementById('f-tamanho'));
 switchView('home');
 
 // ==================== SERVICE WORKER (PWA) ====================
